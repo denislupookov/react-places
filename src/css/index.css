@@ -1,0 +1,123 @@
+body {
+    font-family: 'Open Sans', sans-serif;
+}
+
+.search_input input {
+    font-family: 'Open Sans', sans-serif;
+    border: 1px solid #bebebe;
+    box-sizing: border-box;
+    border-radius: 3px;
+    padding: 8px 13px;
+    font-size: 14px;
+    width: 100%;
+}
+
+.search_input input:focus {
+    outline: none;
+}
+
+.active_drop_down_input {
+    border-radius: 3px 3px 0 0 !important;
+}
+
+.drop_down_block_select {
+    padding: 8px 13px;
+    font-size: 15px;
+    cursor: pointer;
+    transition: .1s;
+}
+
+.drop_down_block_select:hover {
+    background-color: rgb(242, 242, 242);
+}
+
+.active_index_drop_down:hover {
+    background-color: #318541;
+}
+
+.search_title {
+    color: #7b7b7b;
+    font-size: 14px;
+}
+
+.drop_down_container {
+    border: 1px solid #bebebe;
+    background-color: white;
+    width: calc(100% - 2px);
+    border-radius: 0px 0px 4px 4px;
+    position: absolute;
+    border-top: none;
+    position: absolute;
+    max-height: 300px;
+    overflow: auto;
+    z-index: 99999;
+}
+
+.map_container {
+    margin-top: 32px;
+}
+
+.map {
+    width: 100%;
+    height: 350px;
+}
+
+.search {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    position: relative;
+}
+
+.search_focused {
+    transition: all .2s, box-shadow .1s;
+    box-shadow: 0px 0px 0px 1px rgb(0 0 0 / 60%);
+    -webkit-box-shadow: 0px 0px 0px 1px rgb(0 0 0 / 60%);
+    -moz-box-shadow: 0px 0px 0px 1px rgb(0 0 0 / 60%);
+    border-radius: 3px;
+}
+
+.search_focused input {
+    border: 1px solid rgb(0 0 0 / 60%);
+}
+
+.active_index_drop_down {
+    background-color: #318541;
+    color: white;
+}
+
+.loading, .loading:after {
+    border-radius: 50%;
+    width: 10em;
+    height: 10em;
+}
+
+.loading {
+    font-size: 2px;
+    position: relative;
+    text-indent: -9999em;
+    border-top: 1.4em solid rgb(212, 212, 212);
+    border-right: 1.4em solid rgb(212, 212, 212);
+    border-bottom: 1.4em solid rgb(212, 212, 212);
+    border-left: 1.4em solid #616161;
+    -webkit-transform: translateZ(0);
+    -ms-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-animation: loading 1.1s infinite linear;
+    animation: loading 1.1s infinite linear;
+    /* position: absolute; */
+    z-index: 99;
+}
+
+.input_loader {
+    background-color: white;
+    position: absolute;
+    display: flex;
+    align-items: center;
+    right: 20px;
+}
+
+@keyframes loading {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
