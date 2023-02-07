@@ -1,7 +1,6 @@
 {
-  "name": "react-places-autocomplete",
-  "version": "0.1.0",
-  "private": true,
+  "name": "react-places",
+  "version": "1.0.0",
   "dependencies": {
     "@testing-library/jest-dom": "^5.16.5",
     "@testing-library/react": "^13.4.0",
@@ -16,12 +15,11 @@
     "react-dom": "^18.2.0",
     "react-leaflet": "^4.1.0",
     "react-scripts": "5.0.1",
-    "typescript": "^4.8.4",
     "web-vitals": "^2.1.4"
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
+    "build": "webpack --mode production",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
@@ -44,6 +42,40 @@
     ]
   },
   "devDependencies": {
-    "@types/leaflet": "^1.9.0"
-  }
+    "@babel/cli": "^7.20.7",
+    "@babel/core": "^7.20.12",
+    "@types/leaflet": "^1.9.0",
+    "@webpack-cli/generators": "^3.0.1",
+    "css-loader": "^6.7.3",
+    "html-webpack-plugin": "^5.5.0",
+    "mini-css-extract-plugin": "^2.7.2",
+    "style-loader": "^3.3.1",
+    "ts-loader": "^9.4.2",
+    "typescript": "^4.9.5",
+    "webpack": "^5.75.0",
+    "webpack-cli": "^5.0.1"
+  },
+  "description": "npm package you need to find or suggest addresses on the map",
+  "main": "dist/main.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/denislupookov/react-places.git"
+  },
+  "keywords": [
+    "react",
+    "autocomplete",
+    "Map",
+    "address",
+    "find",
+    "address",
+    "leaflet",
+    "react-leaflet",
+    "geo"
+  ],
+  "author": "Denis Lupookov",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/denislupookov/react-places/issues"
+  },
+  "homepage": "https://github.com/denislupookov/react-places#readme"
 }
