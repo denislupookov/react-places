@@ -1,2 +1,2 @@
-import Map from './map';
-export default Map;
+import ReactPlaces from './map';
+export default ReactPlaces;

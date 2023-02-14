@@ -117,6 +117,10 @@ body {
     right: 20px;
 }
 
+.input_drop_down_block {
+    position: relative;
+}
+
 @keyframes loading {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }

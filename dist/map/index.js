@@ -61,13 +61,16 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React from 'react';
 import 'leaflet/dist/leaflet.css';
-import { MapContainer, TileLayer, Marker, Popup, useMapEvent, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { GestureHandling } from "leaflet-gesture-handling";
 import "leaflet/dist/leaflet.css";
 import "leaflet-gesture-handling/dist/leaflet-gesture-handling.css";
+import LeafletMap from './components/Leaflet';
+import TomTomMap from './components/TomTom';
+import { getCoordsData } from './services/MapService';
+import { MapsPackages } from '../modules/enums';
 L.Icon.Default.mergeOptions({
     iconRetinaUrl: require("leaflet/dist/images/marker-icon-2x.png"),
     iconUrl: require("leaflet/dist/images/marker-icon.png"),
@@ -77,13 +80,6 @@ L.Map.addInitHook("addHandler", "gestureHandling", GestureHandling);
 L.Map.mergeOptions({
     gestureHandling: true
 });
-var MapClick = function (_a) {
-    var getMapOnClick = _a.getMapOnClick;
-    var map = useMapEvent('click', function (e) {
-        getMapOnClick(e.latlng);
-    });
-    return null;
-};
 var Map = /** @class */ (function (_super) {
     __extends(Map, _super);
     function Map(props) {
@@ -93,7 +89,8 @@ var Map = /** @class */ (function (_super) {
             var _a = _this.props, lang = _a.lang, country = _a.country;
             var value = e.target.value;
             _this.setState({
-                inputValue: value
+                inputValue: value,
+                isLoading: true
             });
             var url = "https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&street=".concat(value).concat(country ? "&country=".concat(country) : "");
             var req = {
@@ -124,7 +121,8 @@ var Map = /** @class */ (function (_super) {
                     return false;
                 });
                 _this.setState({
-                    dropDownData: unique
+                    dropDownData: unique,
+                    isLoading: false
                 });
             });
         };
@@ -185,17 +183,26 @@ var Map = /** @class */ (function (_super) {
             }
         };
         _this.selectPlace = function (data) { return __awaiter(_this, void 0, void 0, function () {
-            var map, lat, lon, label, type, coord;
+            var map, lat, lon, label, type, coord, mapEl, mapEl;
             return __generator(this, function (_a) {
                 map = this.state.map;
                 lat = data.lat, lon = data.lon, label = data.label, type = data.type;
                 coord = [lat, lon];
                 this.setState({
-                    isClicked: false,
-                    isLoading: true,
                     coord: coord
                 });
-                map && map.flyTo(coord, this.fitZoom(type));
+                if (map && map.map) {
+                    if (map.type === MapsPackages.LEAFLET) {
+                        mapEl = map.map;
+                        mapEl.flyTo(coord, this.fitZoom(type));
+                    }
+                    else {
+                        mapEl = map.map;
+                        mapEl.jumpTo({
+                            center: [coord[1], coord[0]]
+                        });
+                    }
+                }
                 this.setDragging(false);
                 this.setStreetName(label);
                 this.getMapData(data);
@@ -203,7 +210,7 @@ var Map = /** @class */ (function (_super) {
             });
         }); };
         _this.getCoord = function (data) { return __awaiter(_this, void 0, void 0, function () {
-            var lat, lng, url, response, dataJson;
+            var lat, lng, dataJson;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -211,12 +218,8 @@ var Map = /** @class */ (function (_super) {
                         this.setState({
                             coord: [lat, lng]
                         });
-                        url = "https://nominatim.openstreetmap.org/reverse?lat=".concat(lat, "&lon=").concat(lng, "&format=json&addressdetails=1");
-                        return [4 /*yield*/, fetch(url)];
+                        return [4 /*yield*/, getCoordsData(lat, lng)];
                     case 1:
-                        response = _a.sent();
-                        return [4 /*yield*/, response.json()];
-                    case 2:
                         dataJson = _a.sent();
                         this.setDataMap(dataJson);
                         return [2 /*return*/];
@@ -260,7 +263,13 @@ var Map = /** @class */ (function (_super) {
                 inputFocused: false
             });
         };
-        _this.setMap = function (mapEl) {
+        _this.setLeafletMap = function (map) {
+            _this.setMap(MapsPackages.LEAFLET, map);
+        };
+        _this.setTTMap = function (map) {
+            _this.setMap(MapsPackages.TOMTOM, map);
+        };
+        _this.setMap = function (type, mapEl) {
             var _a = _this.state, map = _a.map, coord = _a.coord;
             if (!map) {
                 var coordLatLng = {
@@ -269,7 +278,10 @@ var Map = /** @class */ (function (_super) {
                 };
                 _this.getCoord(coordLatLng);
                 _this.setState({
-                    map: mapEl
+                    map: {
+                        type: type,
+                        map: mapEl
+                    }
                 });
             }
         };
@@ -295,75 +307,26 @@ var Map = /** @class */ (function (_super) {
             coord: _this.props.initiallyCoord,
             dragging: false,
             streetName: "",
-            isClicked: false,
             inputFocused: false,
             currentIndex: -1,
             isLoading: false,
             map: null,
             mapData: {}
         };
-        _this.refInput = React.createRef();
         return _this;
     }
     Map.prototype.render = function () {
         var _this = this;
-        var _a = this.props, inputTitle = _a.inputTitle, placeholder = _a.placeholder;
-        var _b = this.state, dropDownData = _b.dropDownData, inputFocused = _b.inputFocused, inputValue = _b.inputValue, isLoading = _b.isLoading, currentIndex = _b.currentIndex, coord = _b.coord, dragging = _b.dragging;
+        var _a = this.props, inputTitle = _a.inputTitle, placeholder = _a.placeholder, lang = _a.lang, mapType = _a.mapType, zoom = _a.zoom;
+        var _b = this.state, dropDownData = _b.dropDownData, inputFocused = _b.inputFocused, inputValue = _b.inputValue, isLoading = _b.isLoading, currentIndex = _b.currentIndex, coord = _b.coord, map = _b.map, dragging = _b.dragging;
         return (_jsxs("div", { children: [_jsx("div", __assign({ style: { marginTop: 15 } }, { children: _jsxs("div", __assign({ className: "input_drop_down_block" }, { children: [_jsxs("div", __assign({ className: "search_input input_drop_block", style: { width: "100%" } }, { children: [inputTitle !== undefined ? (_jsx("span", __assign({ className: "search_title" }, { children: inputTitle }))) : "", _jsxs("div", __assign({ className: "search" + (inputFocused ? " search_focused" : "") }, { children: [_jsx("input", { type: "text", placeholder: placeholder, className: (dropDownData.length !== 0 ? "active_drop_down_input " : ""), value: inputValue, ref: function (ref) {
                                                     if (ref) {
                                                         _this.getRef(ref);
                                                     }
                                                 }, onChange: this.findPlace, onBlur: function (e) { return _this.removeDropDown(e); }, onFocus: this.focusInput, onKeyDown: this.handleKeyDown }), isLoading ? (_jsx("div", __assign({ className: "input_loader" }, { children: _jsx("div", { className: "loading black" }) }))) : ""] }))] })), dropDownData.length !== 0 ? (_jsx("div", __assign({ className: "drop_down_container" }, { children: dropDownData.map(function (item, index) {
                                     return (_jsx("div", __assign({ className: (currentIndex === index ? "active_index_drop_down " : "") + "drop_down_block_select", onClick: function () { return _this.selectPlace(item); } }, { children: _jsx("span", { children: item.label }) }), index));
-                                }) }))) : ""] })) })), _jsx("div", __assign({ className: "map_container" }, { children: _jsxs(MapContainer, __assign({ center: coord, zoom: 13, scrollWheelZoom: false, className: "map" }, { children: [_jsx(MapClick, { getMapOnClick: this.getCoord }), _jsx(TileLayer, { attribution: '\u00A9 <a href="http://osm.org/copyright">OpenStreetMap</a> contributors', url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" }), _jsx(DraggableMarker, { setDataMap: function (data) { return _this.setDataMap(data); }, coord: coord, dragging: dragging, setDragging: function (bool) { return _this.setDragging(bool); }, streetName: inputValue, getMap: function (map) { return _this.setMap(map); } })] })) }))] }));
+                                }) }))) : ""] })) })), _jsxs("div", __assign({ className: "map_container" }, { children: [!mapType || mapType.type === MapsPackages.LEAFLET ? (_jsx(LeafletMap, __assign({ getCoord: this.getCoord, setDataMap: this.setDataMap, setDragging: this.setDragging, setMap: this.setLeafletMap }, { coord: coord, dragging: dragging, inputValue: inputValue, zoom: zoom }))) : null, mapType && mapType.type === MapsPackages.TOMTOM ? (_jsx(TomTomMap, __assign({ language: lang || "en", setMap: this.setTTMap, setDataMap: this.setDataMap, getCoord: this.getCoord, map: map === null || map === void 0 ? void 0 : map.map, api_key: mapType.api_key || "" }, { coord: coord, zoom: zoom }))) : null] }))] }));
     };
     return Map;
 }(React.Component));
-var DraggableMarker = function (_a) {
-    var setDataMap = _a.setDataMap, coord = _a.coord, dragging = _a.dragging, setDragging = _a.setDragging, streetName = _a.streetName, getMap = _a.getMap;
-    var _b = useState(coord), position = _b[0], setPosition = _b[1];
-    var markerRef = useRef(null);
-    var map = useMap();
-    useEffect(function () {
-        if (!dragging) {
-            setPosition(coord);
-        }
-    });
-    useEffect(function () {
-        if (getMap) {
-            getMap(map);
-        }
-    }, [getMap]);
-    var eventHandlers = useMemo(function () { return ({
-        dragend: function () {
-            return __awaiter(this, void 0, void 0, function () {
-                var marker, lat, lng, url, response, dataJson;
-                return __generator(this, function (_a) {
-                    switch (_a.label) {
-                        case 0:
-                            setDragging(true);
-                            if (!markerRef) return [3 /*break*/, 3];
-                            marker = markerRef.current;
-                            lat = void 0, lng = void 0;
-                            if (marker !== null) {
-                                lat = marker.getLatLng().lat;
-                                lng = marker.getLatLng().lng;
-                            }
-                            url = "https://nominatim.openstreetmap.org/reverse?lat=".concat(lat, "&lon=").concat(lng, "&format=json&addressdetails=1");
-                            return [4 /*yield*/, fetch(url)];
-                        case 1:
-                            response = _a.sent();
-                            return [4 /*yield*/, response.json()];
-                        case 2:
-                            dataJson = _a.sent();
-                            setDataMap(dataJson);
-                            _a.label = 3;
-                        case 3: return [2 /*return*/];
-                    }
-                });
-            });
-        },
-    }); }, []);
-    return (_jsx(Marker, __assign({ draggable: true, eventHandlers: eventHandlers, position: position, ref: markerRef }, { children: _jsx(Popup, __assign({ minWidth: 90 }, { children: _jsx("span", { children: streetName }) })) })));
-};
 export default (Map);

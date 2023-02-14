@@ -15,12 +15,24 @@ interface IData {
     error: string
 }
 
+interface IMapType {
+    type: MapsPackages
+    api_key?: string
+}
+
 interface IProps {
     initiallyCoord: L.LatLngTuple
     inputTitle?: string
     placeholder?: string
     lang?: string
     country?: string,
+    mapType?: IMapType
+    zoom?: number
     getRefInput?: (data: HTMLInputElement) => void
     getMapData?: (data: IData) => void
+}
+
+interface ILatLng {
+    lat: number
+    lng: number
 }
