@@ -1,12 +1,16 @@
-import React, { useState, useRef, useMemo, useEffect, LegacyRef } from 'react';
+import React from 'react';
 
 import 'leaflet/dist/leaflet.css';
 
-import { MapContainer, TileLayer, Marker, Popup, useMapEvent, useMap } from 'react-leaflet'
 import L from 'leaflet';
 import { GestureHandling } from "leaflet-gesture-handling";
 import "leaflet/dist/leaflet.css";
 import "leaflet-gesture-handling/dist/leaflet-gesture-handling.css";
+import LeafletMap from './components/Leaflet'
+import TomTomMap from './components/TomTom'
+import tt from '@tomtom-international/web-sdk-maps';
+import { getCoordsData } from './services/MapService'
+import { MapsPackages } from '../modules/enums'
 
 L.Icon.Default.mergeOptions({
     iconRetinaUrl: require("leaflet/dist/images/marker-icon-2x.png"),
@@ -19,19 +23,13 @@ L.Map.mergeOptions({
     gestureHandling: true
 })
 
-interface IMapClick {
-    getMapOnClick: (lat: L.LatLng) => void
-}
-
-const MapClick = ({ getMapOnClick }: IMapClick) => {
-    const map = useMapEvent('click', (e) => {
-        getMapOnClick(e.latlng)
-    })
-    return null
-}
-
 interface IDD extends IData {
     label: string
+}
+
+interface IMap {
+    type: MapsPackages
+    map: L.Map | tt.Map | null
 }
 
 interface IState {
@@ -40,35 +38,14 @@ interface IState {
     coord: L.LatLngTuple
     dragging: boolean
     streetName: string
-    isClicked: boolean
     inputFocused: boolean
     currentIndex: number
     isLoading: boolean
-    map: L.Map | null
+    map: IMap | null
     mapData: any
 }
 
-interface IDraggableMarker {
-    setDataMap: any
-    coord: L.LatLngTuple
-    dragging: boolean
-    setDragging: any
-    streetName: string
-    getMap: (map: L.Map) => void
-}
-
-interface ILatLng {
-    lat: number
-    lng: number
-}
-
-interface IDragMarker extends React.RefObject<L.Marker<any>> {
-    getLatLng: () => ILatLng
-}
-
 class Map extends React.Component<IProps, IState> {
-    private refInput: React.RefObject<HTMLInputElement>;
-
     constructor(props: IProps) {
         super(props);
         this.state = {
@@ -77,14 +54,12 @@ class Map extends React.Component<IProps, IState> {
             coord: this.props.initiallyCoord,
             dragging: false,
             streetName: "",
-            isClicked: false,
             inputFocused: false,
             currentIndex: -1,
             isLoading: false,
             map: null,
             mapData: {}
         }
-        this.refInput = React.createRef();
     }
 
     findPlace = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -93,7 +68,8 @@ class Map extends React.Component<IProps, IState> {
         const { lang, country } = this.props
         const { value } = e.target
         this.setState({
-            inputValue: value
+            inputValue: value,
+            isLoading: true
         })
         const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&street=${value}${country ? `&country=${country}` : ""}`
         const req = {
@@ -142,7 +118,8 @@ class Map extends React.Component<IProps, IState> {
                 });
 
                 this.setState({
-                    dropDownData: unique
+                    dropDownData: unique,
+                    isLoading: false
                 })
             })
     }
@@ -216,12 +193,21 @@ class Map extends React.Component<IProps, IState> {
         const { lat, lon, label, type } = data
         const coord: L.LatLngTuple = [lat, lon]
         this.setState({
-            isClicked: false,
-            isLoading: true,
             coord: coord
         })
 
-        map && map.flyTo(coord, this.fitZoom(type))
+        if (map && map.map) {
+            if (map.type === MapsPackages.LEAFLET) {
+                let mapEl = map.map as L.Map
+                mapEl.flyTo(coord, this.fitZoom(type))
+            }
+            else {
+                let mapEl = map.map as tt.Map
+                mapEl.jumpTo({
+                    center: [coord[1], coord[0]]
+                })
+            }
+        }
 
         this.setDragging(false)
         this.setStreetName(label)
@@ -234,10 +220,7 @@ class Map extends React.Component<IProps, IState> {
             coord: [lat, lng]
         })
 
-        const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`;
-
-        const response = await fetch(url)
-        const dataJson = await response.json();
+        const dataJson = await getCoordsData(lat, lng)
         this.setDataMap(dataJson)
     }
 
@@ -281,7 +264,15 @@ class Map extends React.Component<IProps, IState> {
         })
     }
 
-    setMap = (mapEl: L.Map) => {
+    setLeafletMap = (map: L.Map) => {
+        this.setMap(MapsPackages.LEAFLET, map)
+    }
+
+    setTTMap = (map: tt.Map) => {
+        this.setMap(MapsPackages.TOMTOM, map)
+    }
+
+    setMap = (type: MapsPackages, mapEl: L.Map | tt.Map) => {
         const { map, coord } = this.state;
 
         if (!map) {
@@ -291,7 +282,10 @@ class Map extends React.Component<IProps, IState> {
             }
             this.getCoord(coordLatLng)
             this.setState({
-                map: mapEl
+                map: {
+                    type,
+                    map: mapEl
+                }
             })
         }
     }
@@ -317,9 +311,9 @@ class Map extends React.Component<IProps, IState> {
     }
 
     render() {
-        const { inputTitle, placeholder } = this.props
-        const { dropDownData, inputFocused, inputValue, 
-            isLoading, currentIndex, coord, dragging } = this.state
+        const { inputTitle, placeholder, lang, mapType, zoom } = this.props
+        const { dropDownData, inputFocused, inputValue,
+            isLoading, currentIndex, coord, map, dragging } = this.state
 
         return (
             <div>
@@ -369,88 +363,36 @@ class Map extends React.Component<IProps, IState> {
                     </div>
                 </div>
 
+
                 <div className="map_container">
 
-                    <MapContainer
-                        center={coord}
-                        zoom={13}
-                        scrollWheelZoom={false}
-                        className="map"
-                    >
-                        <MapClick
-                            getMapOnClick={this.getCoord}
+                    {!mapType || mapType.type === MapsPackages.LEAFLET ? (
+                        <LeafletMap
+                            getCoord={this.getCoord}
+                            setDataMap={this.setDataMap}
+                            setDragging={this.setDragging}
+                            setMap={this.setLeafletMap}
+                            {...{ coord, dragging, inputValue, zoom }}
                         />
-                        <TileLayer
-                            attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
-                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    ) : null}
+
+                    {mapType && mapType.type === MapsPackages.TOMTOM ? (
+                        <TomTomMap
+                            language={lang || "en"}
+                            setMap={this.setTTMap}
+                            setDataMap={this.setDataMap}
+                            getCoord={this.getCoord}
+                            map={map?.map as tt.Map}
+                            api_key={mapType.api_key || ""}
+                            {...{ coord, zoom }}
                         />
-                        <DraggableMarker
-                            setDataMap={(data: IData) => this.setDataMap(data)}
-                            coord={coord}
-                            dragging={dragging}
-                            setDragging={(bool: boolean) => this.setDragging(bool)}
-                            streetName={inputValue}
-                            getMap={map => this.setMap(map)}
-                        />
-                    </MapContainer>
+                    ) : null}
                 </div>
             </div>
         )
     }
 }
 
-const DraggableMarker: React.FC<IDraggableMarker> = ({ setDataMap, coord, dragging, setDragging, streetName, getMap }) => {
-    const [position, setPosition] = useState(coord)
-    const markerRef = useRef<IDragMarker>(null)
-    const map = useMap()
 
-    useEffect(() => {
-        if (!dragging) {
-            setPosition(coord);
-        }
-    });
-
-    useEffect(() => {
-        if (getMap) {
-            getMap(map)
-        }
-    }, [getMap])
-
-    const eventHandlers = useMemo(
-        () => ({
-            async dragend() {
-                setDragging(true)
-                if (markerRef) {
-                    const marker = markerRef.current
-                    let lat, lng;
-                    if (marker !== null) {
-                        lat = marker.getLatLng().lat;
-                        lng = marker.getLatLng().lng;
-                    }
-
-                    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`;
-                    const response = await fetch(url)
-                    const dataJson = await response.json();
-                    setDataMap(dataJson)
-                }
-            },
-        }),
-        [],
-    )
-
-    return (
-        <Marker
-            draggable
-            eventHandlers={eventHandlers}
-            position={position}
-            ref={markerRef as IDragMarker}>
-            <Popup minWidth={90}>
-                <span>
-                    {streetName}
-                </span>
-            </Popup>
-        </Marker>
-    )
-}
 
 export default (Map);
